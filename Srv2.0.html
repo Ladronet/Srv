@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Tracker Pro</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.321.0/font/lucide.min.css" rel="stylesheet">
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .animate-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const App = () => {
+            const getSaved = (key, fallback) => {
+                try {
+                    const saved = localStorage.getItem(key);
+                    return saved ? JSON.parse(saved) : fallback;
+                } catch (e) { return fallback; }
+            };
+
+            const [projectName, setProjectName] = useState(() => getSaved('pt_name', 'Il Mio Progetto'));
+            const [targetHours, setTargetHours] = useState(() => getSaved('pt_target', 100));
+            const [logs, setLogs] = useState(() => getSaved('pt_logs', []));
+            const [isConfiguring, setIsConfiguring] = useState(false);
+            const [confirmReset, setConfirmReset] = useState(false);
+            const [newEntry, setNewEntry] = useState({ hours: '', report: '' });
+
+            useEffect(() => {
+                localStorage.setItem('pt_name', JSON.stringify(projectName));
+                localStorage.setItem('pt_target', JSON.stringify(targetHours));
+                localStorage.setItem('pt_logs', JSON.stringify(logs));
+            }, [projectName, targetHours, logs]);
+
+            const handleReset = () => {
+                if (confirmReset) {
+                    localStorage.clear();
+                    setProjectName('Il Mio Progetto');
+                    setTargetHours(100);
+                    setLogs([]);
+                    setConfirmReset(false);
+                    setIsConfiguring(false);
+                } else {
+                    setConfirmReset(true);
+                }
+            };
+
+            const totalWorked = logs.reduce((sum, log) => sum + parseFloat(log.hours || 0), 0);
+            const progressPercent = Math.min(Math.round((totalWorked / targetHours) * 100), 100);
+            const remainingHours = Math.max(targetHours - totalWorked, 0);
+
+            const addLog = (e) => {
+                e.preventDefault();
+                if (!newEntry.hours || !newEntry.report) return;
+                const entry = {
+                    id: Date.now(),
+                    date: new Date().toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                    hours: parseFloat(newEntry.hours),
+                    report: newEntry.report
+                };
+                setLogs([entry, ...logs]);
+                setNewEntry({ hours: '', report: '' });
+            };
+
+            const deleteLog = (id) => setLogs(logs.filter(log => log.id !== id));
+
+            return (
+                <div className="max-w-xl mx-auto p-4 pb-12 space-y-6">
+                    <header className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 relative">
+                        <button onClick={() => { setIsConfiguring(!isConfiguring); setConfirmReset(false); }} className="absolute top-4 right-4 p-2 text-slate-400">
+                            <i className={`lucide-${isConfiguring ? 'check' : 'settings'} w-5 h-5`}></i>
+                        </button>
+
+                        {isConfiguring ? (
+                            <div className="space-y-4 animate-in">
+                                <h2 className="font-bold text-blue-600">Impostazioni</h2>
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-slate-400">Nome Progetto</label>
+                                    <input type="text" value={projectName} onChange={e => setProjectName(e.target.value)} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 mt-1" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-slate-400">Ore Obiettivo</label>
+                                    <input type="number" value={targetHours} onChange={e => setTargetHours(Number(e.target.value))} className="w-full p-3 bg-slate-50 rounded-xl border border-slate-100 mt-1" />
+                                </div>
+                                
+                                <div className="pt-4 border-t border-slate-100">
+                                    <button 
+                                        onClick={handleReset}
+                                        className={`w-full py-3 rounded-xl font-bold transition-all ${confirmReset ? 'bg-red-600 text-white' : 'bg-red-50 text-red-600'}`}
+                                    >
+                                        {confirmReset ? 'Tocca di nuovo per confermare' : 'Reset di tutti i dati'}
+                                    </button>
+                                    {confirmReset && (
+                                        <button onClick={() => setConfirmReset(false)} className="w-full mt-2 text-xs font-bold text-slate-400">Annulla</button>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <h1 className="text-2xl font-black text-slate-800">{projectName}</h1>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-3xl font-black text-blue-600">{progressPercent}%</span>
+                                        <span className="text-sm font-bold text-slate-400">{totalWorked} / {targetHours}h</span>
+                                    </div>
+                                    <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500 transition-all duration-700" style={{ width: `${progressPercent}%` }}></div>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-blue-50 p-3 rounded-2xl text-center">
+                                        <p className="text-[10px] uppercase font-bold text-blue-500">Mancano</p>
+                                        <p className="text-xl font-black">{remainingHours}h</p>
+                                    </div>
+                                    <div className="bg-emerald-50 p-3 rounded-2xl text-center">
+                                        <p className="text-[10px] uppercase font-bold text-emerald-500">Fatte</p>
+                                        <p className="text-xl font-black">{totalWorked}h</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </header>
+
+                    <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
+                        <form onSubmit={addLog} className="space-y-4">
+                            <div className="flex gap-2">
+                                <input type="number" step="0.5" placeholder="Ore" value={newEntry.hours} onChange={e => setNewEntry({...newEntry, hours: e.target.value})} className="w-20 p-3 bg-slate-50 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-blue-500"/>
+                                <input type="text" placeholder="Cosa hai fatto?" value={newEntry.report} onChange={e => setNewEntry({...newEntry, report: e.target.value})} className="flex-1 p-3 bg-slate-50 rounded-xl border border-slate-100 outline-none focus:ring-2 focus:ring-blue-500"/>
+                            </div>
+                            <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold active:scale-95 transition-transform">
+                                Registra Sessione
+                            </button>
+                        </form>
+                    </section>
+
+                    <section className="space-y-3">
+                        <div className="flex justify-between px-2">
+                            <h3 className="font-black text-slate-400 uppercase text-xs tracking-widest">Attività Recenti</h3>
+                            <span className="text-xs font-bold text-slate-300">{logs.length} voci</span>
+                        </div>
+                        {logs.length === 0 ? (
+                            <p className="text-center text-slate-300 py-10 italic">Nessun dato registrato</p>
+                        ) : (
+                            logs.map(log => (
+                                <div key={log.id} className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center shadow-sm animate-in">
+                                    <div className="flex items-center gap-4">
+                                        <div className="text-blue-600 font-black bg-blue-50 w-10 h-10 rounded-xl flex items-center justify-center text-xs">
+                                            {log.hours}h
+                                        </div>
+                                        <div>
+                                            <p className="font-bold text-slate-700 leading-tight">{log.report}</p>
+                                            <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold">{log.date}</p>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => deleteLog(log.id)} className="text-slate-200 hover:text-red-400 p-2">
+                                        <i className="lucide-trash-2 w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </section>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
