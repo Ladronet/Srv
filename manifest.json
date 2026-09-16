@@ -1,10 +1,19 @@
 {
   "name": "Project Tracker Pro",
   "short_name": "Project Tracker",
+  "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#020617",
   "theme_color": "#020617",
   "orientation": "portrait",
-  "icons": []
+  "icons": [
+    {
+      "src": "file_00000000e27881f486a296bbb46e707f.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
